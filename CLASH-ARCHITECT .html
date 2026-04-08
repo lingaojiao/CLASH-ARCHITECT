@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CLASH ARCHITECT</title>
+<style>
+    :root { --bg: #f3f4f6; --panel: #ffffff; --text: #1f2937; --primary: #4b5563; --accent: #2563eb; --border: #d1d5db; }
+    body { font-family: 'PingFang SC', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 14px; overflow: hidden; }
+    header { height: 60px; background: var(--panel); border-bottom: 2px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 30px; flex-shrink: 0; }
+    main { display: flex; height: calc(100vh - 60px); overflow: hidden; }
+    
+    .sidebar { width: 350px; background: var(--panel); border-right: 2px solid var(--border); padding: 20px; display: flex; flex-direction: column; gap: 15px; flex-shrink: 0; overflow-y: auto; }
+    .canvas { flex: 1; padding: 0 30px 20px 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; scroll-behavior: smooth; position: relative; }
+    
+    input, select, textarea, button { font-size: 14px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border); width: 100%; box-sizing: border-box; height: 38px; outline: none; }
+    button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; height: 42px; transition: 0.2s; }
+    button:hover { opacity: 0.9; }
+    
+    .creator-box { background: #fff; padding: 15px; border-radius: 10px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+    .label-hint { font-size: 12px; font-weight: bold; color: var(--primary); margin-bottom: -5px; }
+    
+    .word-hints { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
+    .word-tag { font-size: 11px; background: #f1f5f9; color: var(--accent); padding: 2px 6px; border-radius: 4px; cursor: pointer; border: 1px solid #e2e8f0; }
+    .word-tag:hover { background: var(--accent); color: white; }
+    
+    .group-card { background: var(--panel); border: 2px solid var(--border); border-radius: 12px; padding: 15px; width: 100%; box-sizing: border-box; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    
+    .pool-card-container { position: sticky; top: 0; z-index: 100; background: var(--bg); padding: 5px 0 10px 0; }
+    .pool-card { border: 2px dashed var(--border); cursor: grab; background: var(--panel); height: 255px; display: flex; flex-direction: column; overflow: hidden; }
+    #pool { flex: 1; overflow-y: auto; padding: 10px; background: #fdfdfd; scrollbar-width: thin; }
+    #pool::-webkit-scrollbar { width: 6px; }
+    #pool::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+    #groups-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .group-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .group-name { font-weight: 800; font-size: 15px; color: var(--accent); cursor: grab; }
+    .type-select-mini { width: 120px !important; height: 28px !important; font-size: 12px !important; padding: 0 5px !important; }
+
+    .params-grid { display: flex; flex-wrap: wrap; gap: 8px; background: #f9fafb; padding: 8px; border-radius: 8px; margin-bottom: 10px; align-items: center; }
+    .param-item { display: flex; align-items: center; gap: 5px; }
+    .param-item label { font-size: 11px; color: #64748b; white-space: nowrap; }
+    .param-item input, .param-item select { width: 90px; height: 28px; font-size: 12px; }
+    
+    .items-box { min-height: 40px; display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; border: 1px solid #edf2f7; border-radius: 6px; background: #fff; }
+    .node-item { background: #fff; border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; cursor: move; font-size: 12px; display: inline-flex; align-items: center; user-select: none; }
+    .node-item.is-sub { border-color: var(--accent); background: #eff6ff; font-weight: bold; }
+    .ms { color: #10b981; font-weight: bold; margin-left: 5px; font-size: 10px; }
+    
+    #trash { border: 2px dashed #f87171; color: #ef4444; text-align: center; padding: 15px; border-radius: 8px; font-weight: bold; margin-top: auto; }
+    #output-box { width: 100%; height: 400px; background: #1e293b; color: #f1f5f9; padding: 15px; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 12px; line-height: 1.5; resize: vertical; margin-top: 15px; }
+
+    /* --- 新增：说明文档弹窗样式 --- */
+    .doc-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; backdrop-filter: blur(4px); }
+    .doc-window { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85%; max-width: 800px; height: 80vh; background: white; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.4); }
+    .doc-header { padding: 20px 30px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+    .doc-body { flex: 1; padding: 30px; overflow-y: auto; line-height: 1.8; color: #334155; }
+    .doc-section { margin-bottom: 30px; }
+    .doc-section h3 { color: var(--accent); border-left: 5px solid var(--accent); padding-left: 15px; margin-bottom: 15px; font-size: 18px; }
+    .doc-section p { margin: 10px 0; }
+    .doc-section ul { padding-left: 20px; }
+    .doc-close-btn { cursor: pointer; font-size: 28px; color: #94a3b8; }
+    .doc-close-btn:hover { color: #1e293b; }
+    .doc-tag { background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<header>
+    <div style="font-weight: 900; font-size: 18px;">CLASH <span style="color:var(--accent)">ARCHITECT</span> PRO</div>
+    <button onclick="openDoc()" style="width: auto; height: 34px; font-size: 13px; background: #10b981; padding: 0 20px;">📖 使用文档</button>
+</header>
+
+<main>
+    <div class="sidebar">
+        <textarea id="input" style="height:150px; padding:10px; resize:none;" placeholder="粘贴节点或 YAML..."></textarea>
+        
+        <div class="creator-box">
+            <div class="label-hint">策略与名称</div>
+            <select id="sel-type">
+                <option value="select">手动选择 (select)</option>
+                <option value="url-test">自动测速 (url-test)</option>
+                <option value="fallback">故障转移 (fallback)</option>
+                <option value="load-balance">负载均衡 (load-balance)</option>
+            </select>
+            <input type="text" id="sel-name" placeholder="组名">
+            
+            <div class="word-hints">
+                <span class="word-tag" onclick="setGName('OpenAI')">OpenAI</span>
+                <span class="word-tag" onclick="setGName('YouTube')">YouTube</span>
+                <span class="word-tag" onclick="setGName('香港节点')">香港</span>
+                <span class="word-tag" onclick="setGName('美国节点')">美国</span>
+            </div>
+            
+            <button onclick="create()">创建新分组</button>
+        </div>
+        
+        <button onclick="parse()">⚡ 解析节点</button>
+        <button onclick="speedTest()" style="background:#ef4444;">🗑️ 清空页面</button>
+        <button onclick="buildYAML()" style="background:var(--primary);">🚀 生成 YAML</button>
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <button onclick="copy()">复制内容</button>
+            <button onclick="download()" style="background:#0f172a;">下载 YAML</button>
+        </div>
+        <button onclick="reconstructYaml()" style="background:#2563eb;">📥 载入YAML重构</button>
+        
+        <div id="trash" ondrop="handleDel(event)" ondragover="event.preventDefault()">🗑️ 拖拽组或节点到此删除</div>
+    </div>
+
+    <div class="canvas" id="canvas" ondragover="handleDragScroll(event)">
+        <div class="pool-card-container">
+            <div class="group-card pool-card" id="pool-container" draggable="true" ondragstart="handlePoolDragStart(event)">
+                <div style="font-weight:bold; color:#666; font-size:12px; padding: 10px 15px 5px 15px;">📦 节点池 - <span id="node-cnt">0</span> 个</div>
+                <div id="pool" class="items-box"></div>
+            </div>
+        </div>
+        <div id="groups-list"></div>
+        <div style="padding-bottom: 50px;">
+            <textarea id="output-box" spellcheck="false" placeholder="YAML 输出区..."></textarea>
+        </div>
+    </div>
+</main>
+
+<div id="docOverlay" class="doc-overlay">
+    <div class="doc-window">
+        <div class="doc-header">
+            <h2 style="margin:0;">CLASH ARCHITECT 指导手册</h2>
+            <span class="doc-close-btn" onclick="closeDoc()">&times;</span>
+        </div>
+        <div class="doc-body">
+            <div class="doc-section">
+                <h3>1. 解析节点 (Parse)</h3>
+                <p>将您的代理节点分享链接（vmess/vless/ss/hy2 等）或现有的 YAML 配置文件源码粘贴到左上角的输入框中。</p>
+                <p>点击 <span class="doc-tag">⚡ 解析节点</span>，系统将自动识别协议并将其导入至 <span class="doc-tag">📦 节点池</span> 中。</p>
+            </div>
+            <div class="doc-section">
+                <h3>2. 可视化编排 (Arrange)</h3>
+                <ul>
+                    <li><strong>创建组</strong>：在左侧输入组名并选择类型，点击“创建新分组”即可在右侧生成。</li>
+                    <li><strong>拖拽操作</strong>：直接从节点池中将节点拖入下方分组。您也可以拖拽整个 <span class="doc-tag">📦 节点池</span> 头部，将其中的所有节点一键导入某个组。</li>
+                    <li><strong>组内嵌套</strong>：将已存在的 <span class="doc-tag">📂 文件夹图标</span>（代表一个组）拖入另一个组内，实现复杂的层级转发逻辑。</li>
+                    <li><strong>修改名称</strong>：双击任何一个节点标签，即可弹出重命名对话框。</li>
+                </ul>
+            </div>
+            <div class="doc-section">
+                <h3>3. 策略类型详解 (Policy Types)</h3>
+                <ul>
+                    <li><span class="doc-tag">select</span>：手动选择。在客户端内由用户手动点击切换节点。</li>
+                    <li><span class="doc-tag">url-test</span>：自动选择延迟最低。系统根据 <span class="doc-tag">间隔</span> 设定的时间自动进行 HTTP 测速，并选择最快的节点。</li>
+                    <li><span class="doc-tag">fallback</span>：故障转移。按列表顺序使用第一个健康节点，当主节点挂掉后自动按序顺延。</li>
+                    <li><span class="doc-tag">load-balance</span>：负载均衡。根据 <span class="doc-tag">策略</span>（如轮询或一致性哈希）分摊流量。</li>
+                </ul>
+            </div>
+            <div class="doc-section">
+                <h3>4. 载入YAML重构 (Reconstruct)</h3>
+                <p>如果您手头有一个旧的 Clash 配置文件，直接粘贴其源码并点击 <span class="doc-tag">📥 载入YAML重构</span>。</p>
+                <p>工具将自动逆向解析 <code>proxies</code> 和 <code>proxy-groups</code>，为您在右侧还原出原本的拖拽界面和层级关系，方便您进行微调。</p>
+            </div>
+            <div class="doc-section">
+                <h3>5. 输出与维护</h3>
+                <p>编排完成后，点击 <span class="doc-tag">🚀 生成 YAML</span> 即可在底部查看源码。您可以使用复制或下载功能。</p>
+                <p>如果您想重新开始，点击左侧红色 <span class="doc-tag">🗑️ 清空页面</span> 按钮。注意：这将重置所有节点和分组回到初始状态。</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- 新增：文档控制逻辑 ---
+function openDoc() { document.getElementById('docOverlay').style.display = 'block'; }
+function closeDoc() { document.getElementById('docOverlay').style.display = 'none'; }
+// 点击阴影处关闭
+window.onclick = function(e) { if(e.target == document.getElementById('docOverlay')) closeDoc(); }
+
+let nodes = [];
+let groupOrder = ['🚀 节点选择', '♻️ 自动选择', '⚡ 故障转移'];
+let groups = {
+    '🚀 节点选择': { type: 'select', items: ['♻️ 自动选择', '⚡ 故障转移'], interval: 300, tolerance: 300, strategy: 'round-robin' },
+    '♻️ 自动选择': { type: 'url-test', items: [], interval: 300, tolerance: 300, strategy: 'round-robin' },
+    '⚡ 故障转移': { type: 'fallback', items: [], interval: 300, tolerance: 500, strategy: 'round-robin' }
+};
+
+// 保留你当前版本中已经调好的 VMess 解码逻辑
+function safeAtob(str) {
+    try {
+        str = str.replace(/-/g, "+").replace(/_/g, "/");
+        while (str.length % 4) { str += "="; }
+        return decodeURIComponent(escape(window.atob(str)));
+    } catch (e) {
+        return null;
+    }
+}
+
+function handlePoolDragStart(e) { e.dataTransfer.setData("text", JSON.stringify({ type: 'pool-all' })); }
+function setGName(val) { document.getElementById('sel-name').value = val; }
+
+function render() {
+    document.getElementById('node-cnt').textContent = nodes.length;
+    const p = document.getElementById('pool'); p.innerHTML = "";
+    nodes.forEach((n, i) => {
+        const d = document.createElement('div'); d.className = 'node-item'; d.draggable = true;
+        d.innerHTML = `${n.name}${n.ms ? `<span class="ms">${n.ms}ms</span>`:''}`;
+        d.ondblclick = () => {
+            const nn = prompt("修改节点名称:", n.name);
+            if (nn) { n.name = nn; render(); }
+        };
+        d.ondragstart = (e) => { e.stopPropagation(); e.dataTransfer.setData("text", JSON.stringify({type:'node', idx:i})); };
+        p.appendChild(d);
+    });
+
+    const list = document.getElementById('groups-list'); list.innerHTML = "";
+    groupOrder.forEach(gn => {
+        const g = groups[gn];
+        const card = document.createElement('div'); card.className = 'group-card';
+        card.ondrop = (e) => handleDrop(e, gn); card.ondragover = (e) => e.preventDefault();
+        
+        const typeSelect = `<select class="type-select-mini" onchange="groups['${gn}'].type=this.value; render();">
+            <option value="select" ${g.type==='select'?'selected':''}>select</option>
+            <option value="url-test" ${g.type==='url-test'?'selected':''}>url-test</option>
+            <option value="fallback" ${g.type==='fallback'?'selected':''}>fallback</option>
+            <option value="load-balance" ${g.type==='load-balance'?'selected':''}>load-balance</option>
+        </select>`;
+
+        let secondParam = "";
+        if(g.type === 'load-balance') {
+            secondParam = `<div class="param-item"><label>策略:</label><select onchange="groups['${gn}'].strategy=this.value">
+                <option value="round-robin" ${g.strategy==='round-robin'?'selected':''}>轮询</option>
+                <option value="consistent-hashing" ${g.strategy==='consistent-hashing'?'selected':''}>一致性哈希</option>
+            </select></div>`;
+        } else if(g.type !== 'select') {
+            secondParam = `<div class="param-item"><label>容差:</label><input type="number" value="${g.tolerance}" onchange="groups['${gn}'].tolerance=parseInt(this.value)"></div>`;
+        }
+
+        let params = (g.type !== 'select') ? `<div class="params-grid"><div class="param-item"><label>间隔:</label><input type="number" value="${g.interval}" onchange="groups['${gn}'].interval=parseInt(this.value)"></div>${secondParam}</div>` : "";
+        
+        card.innerHTML = `<div class="group-header">
+            <span class="group-name" draggable="true" ondragstart="event.dataTransfer.setData('text', JSON.stringify({type:'sub-move', val:'${gn}'}))">📂 ${gn}</span>
+            ${typeSelect}
+        </div>${params}<div class="items-box"></div>`;
+        
+        g.items.forEach(it => {
+            const item = document.createElement('div');
+            const isSub = typeof it === 'string';
+            item.className = 'node-item ' + (isSub ? 'is-sub' : '');
+            item.textContent = isSub ? "📂 " + it : nodes[it].name;
+            item.draggable = true;
+            item.ondragstart = (e) => { e.stopPropagation(); e.dataTransfer.setData("text", JSON.stringify({type: isSub?'s-del':'n-del', val:it, from:gn})); };
+            card.querySelector('.items-box').appendChild(item);
+        });
+        list.appendChild(card);
+    });
+}
+
+function handleDrop(e, target) {
+    e.preventDefault();
+    const data = JSON.parse(e.dataTransfer.getData("text"));
+    let gItems = groups[target].items;
+
+    if(data.type === 'pool-all') {
+        nodes.forEach((_, i) => { if(!gItems.includes(i)) gItems.push(i); });
+    } else if(data.type === 'node') {
+        if(!gItems.includes(data.idx)) gItems.push(data.idx);
+    } else if(data.type === 'sub-move') {
+        if(data.val !== target && !gItems.includes(data.val)) {
+            let lastSubIdx = -1;
+            for(let i = 0; i < gItems.length; i++) {
+                if(typeof gItems[i] === 'string') lastSubIdx = i;
+            }
+            gItems.splice(lastSubIdx + 1, 0, data.val);
+        }
+    }
+    render();
+}
+
+function handleDel(e) {
+    e.preventDefault();
+    const data = JSON.parse(e.dataTransfer.getData("text"));
+    if(data.from) { groups[data.from].items = groups[data.from].items.filter(it => it !== data.val); }
+    else if(data.type === 'sub-move') {
+        delete groups[data.val];
+        groupOrder = groupOrder.filter(n => n !== data.val);
+        groupOrder.forEach(gn => groups[gn].items = groups[gn].items.filter(it => it !== data.val));
+    }
+    render();
+}
+
+function buildYAML() {
+    let y = `mixed-port: 7890
+allow-lan: true
+log-level: info
+external-controller: 0.0.0.0:9090
+
+dns:
+  enable: true
+  enhanced-mode: fake-ip
+  nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+
+proxies:\n`;
+
+    nodes.forEach(n => {
+        const type = n.type || 'vless';
+        y += `  - name: "${n.name}"\n    type: ${type}\n    server: ${n.server}\n    port: ${n.port}\n`;
+        if (type === 'ss') {
+            y += `    cipher: ${n.cipher || 'aes-256-gcm'}\n    password: "${n.uuid || n.password || ''}"\n`;
+        } else if (type === 'hysteria2') {
+            y += `    password: "${n.uuid}"\n    ssl: true\n    sni: "${n.host || n.server}"\n    skip-cert-verify: ${n.insecure || false}\n`;
+        } else {
+            y += `    uuid: ${n.uuid || ''}\n`;
+            if (type === 'vmess') y += `    alterId: ${n.alterId || 0}\n    cipher: auto\n`;
+        }
+        
+        if (type !== 'hysteria2') {
+            y += `    tls: ${n.tls || false}\n`;
+            if (n.network === 'ws' || n.path) {
+                y += `    network: ws\n    ws-opts:\n      path: "${n.path || '/'}"\n      headers:\n        Host: "${n.host || ''}"\n`;
+            } else if (n.network) {
+                y += `    network: ${n.network}\n`;
+            }
+        }
+    });
+
+    y += "\nproxy-groups:\n";
+    groupOrder.forEach(gn => {
+        const g = groups[gn];
+        y += `  - name: "${gn}"\n    type: ${g.type}\n`;
+        if (g.type !== 'select') {
+            y += `    url: http://www.gstatic.com/generate_204\n    interval: ${g.interval}\n`;
+            if (g.type === 'load-balance') y += `    strategy: ${g.strategy || 'round-robin'}\n`;
+            else y += `    tolerance: ${g.tolerance}\n`;
+        }
+        y += `    proxies:\n`;
+        g.items.forEach(it => {
+            y += `      - "${(typeof it === 'string') ? it : nodes[it].name}"\n`;
+        });
+        y += "\n";
+    });
+
+    y += `rules:
+  - GEOIP,CN,DIRECT
+  - MATCH, 🚀 节点选择`;
+
+    document.getElementById('output-box').value = y;
+}
+
+function parse() {
+    const txt = document.getElementById('input').value;
+    txt.split('\n').forEach(line => {
+        line = line.trim();
+        if(!line) return;
+
+        if(line.startsWith('vmess://')) {
+            const decoded = safeAtob(line.slice(8));
+            if(decoded) {
+                try {
+                    const c = JSON.parse(decoded);
+                    nodes.push({
+                        name: c.ps || "未命名 VMess",
+                        type: 'vmess',
+                        server: c.add,
+                        port: parseInt(c.port),
+                        uuid: c.id,
+                        tls: c.tls === 'tls' || c.port == 443,
+                        network: c.net || 'ws',
+                        path: c.path || '/',
+                        host: c.host || '',
+                        alterId: c.aid || 0
+                    });
+                } catch(e){}
+            }
+        } else if(line.includes('://')) {
+            try {
+                let u = new URL(line);
+                let protocol = u.protocol.replace(':', '');
+                let type = 'vless'; 
+                if (['ss', 'vmess', 'vless', 'trojan', 'hysteria2', 'hy2'].includes(protocol)) {
+                    type = (protocol === 'hy2') ? 'hysteria2' : protocol;
+                }
+
+                nodes.push({
+                    name: decodeURIComponent(u.hash.slice(1)) || u.hostname,
+                    type: type,
+                    server: u.hostname,
+                    port: parseInt(u.port) || 443,
+                    uuid: u.username || u.password,
+                    tls: u.searchParams.get('security') === 'tls' || u.port == '443',
+                    network: u.searchParams.get('type') || u.searchParams.get('network'),
+                    path: u.searchParams.get('path'),
+                    host: u.searchParams.get('sni') || u.searchParams.get('host'),
+                    cipher: u.searchParams.get('cipher'),
+                    insecure: u.searchParams.get('insecure') === '1'
+                });
+            } catch(e){}
+        }
+    });
+    render();
+}
+
+function create() {
+    const n = document.getElementById('sel-name').value.trim();
+    if(!n || groups[n]) return;
+    groupOrder.push(n);
+    groups[n] = { type: document.getElementById('sel-type').value, items: [], interval: 300, tolerance: 300, strategy: 'round-robin' };
+    render();
+}
+
+function reconstructYaml() {
+    const raw = document.getElementById('input').value;
+    if(!raw.includes('proxies:') || !raw.includes('proxy-groups:')) return;
+    nodes = []; groups = {}; groupOrder = [];
+    try {
+        const pSection = raw.split('proxies:')[1].split('proxy-groups:')[0];
+        
+        const inlineRegex = /-\s*\{([^}]+)\}/g;
+        let match;
+        while ((match = inlineRegex.exec(pSection)) !== null) {
+            const b = match[1];
+            let name = b.match(/name:\s*([^,]+)/)?.[1]?.trim().replace(/['"]/g, "");
+            if (name) {
+                nodes.push({
+                    name: name,
+                    type: b.match(/type:\s*([^,]+)/)?.[1]?.trim() || 'vless',
+                    server: b.match(/server:\s*([^,]+)/)?.[1]?.trim() || "imported",
+                    port: parseInt(b.match(/port:\s*(\d+)/)?.[1] || 443),
+                    uuid: b.match(/uuid:\s*([^,]+)/)?.[1]?.trim() || b.match(/password:\s*"?([^,"]+)"?/)?.[1]?.trim(),
+                    tls: b.includes('tls: true'),
+                    path: b.match(/path:\s*"([^"]+)"/)?.[1],
+                    host: b.match(/Host:\s*([^,}]+)/)?.[1]?.trim()
+                });
+            }
+        }
+
+        pSection.split('- name:').forEach((b, idx) => {
+            if (idx === 0 || !b.trim() || b.trim().startsWith('{')) return;
+            let name = b.match(/"([^"]+)"/)?.[1] || b.split('\n')[0].trim();
+            nodes.push({ 
+                name: name,
+                type: b.match(/type:\s*([^\s\n]+)/)?.[1] || 'vless',
+                server: b.match(/server:\s*([^\s\n]+)/)?.[1] || "imported",
+                port: parseInt(b.match(/port:\s*(\d+)/)?.[1] || 443),
+                uuid: b.match(/uuid:\s*([^\s\n]+)/)?.[1] || b.match(/password:\s*"?([^"\n]+)"?/)?.[1],
+                tls: b.includes('tls: true'),
+                path: b.match(/path:\s*"([^"]+)"/)?.[1],
+                host: b.match(/Host:\s*"([^"]+)"/)?.[1]
+            });
+        });
+
+        const gSection = raw.split('proxy-groups:')[1].split('rules:')[0];
+        gSection.split('- name:').forEach(b => {
+            if(!b.trim()) return;
+            const gn = b.split('\n')[0].match(/"([^"]+)"/)?.[1] || b.split('\n')[0].trim();
+            groupOrder.push(gn);
+            groups[gn] = {
+                type: b.match(/type:\s*([^\s\n]+)/)?.[1] || 'select',
+                interval: parseInt(b.match(/interval:\s*(\d+)/)?.[1] || 300),
+                tolerance: parseInt(b.match(/tolerance:\s*(\d+)/)?.[1] || 300),
+                strategy: b.match(/strategy:\s*([^\s\n]+)/)?.[1] || 'round-robin',
+                items: []
+            };
+            const pList = b.split('proxies:')[1]?.split('\n');
+            if(pList) pList.forEach(l => {
+                const m = l.match(/-\s*"([^"]+)"/) || l.match(/-\s*([^\s\n]+)/);
+                if(m) {
+                    const idx = nodes.findIndex(n => n.name === m[1]);
+                    groups[gn].items.push(idx !== -1 ? idx : m[1]);
+                }
+            });
+        });
+        render();
+    } catch(e) {}
+}
+
+function handleDragScroll(e) {
+    const canvas = document.getElementById('canvas');
+    if (e.clientY < 160) canvas.scrollTop -= 15;
+    else if (e.clientY > window.innerHeight - 100) canvas.scrollTop += 15;
+}
+
+function speedTest() { 
+    if(confirm("确定清空所有数据吗？")) {
+        nodes = [];
+        groupOrder = ['🚀 节点选择', '♻️ 自动选择', '⚡ 故障转移'];
+        groups = {
+            '🚀 节点选择': { type: 'select', items: ['♻️ 自动选择', '⚡ 故障转移'], interval: 300, tolerance: 300, strategy: 'round-robin' },
+            '♻️ 自动选择': { type: 'url-test', items: [], interval: 300, tolerance: 300, strategy: 'round-robin' },
+            '⚡ 故障转移': { type: 'fallback', items: [], interval: 300, tolerance: 500, strategy: 'round-robin' }
+        };
+        document.getElementById('input').value = "";
+        document.getElementById('output-box').value = "";
+        render();
+    }
+}
+function copy() { document.getElementById('output-box').select(); document.execCommand('copy'); }
+function download() {
+    const b = new Blob([document.getElementById('output-box').value], {type:'text/yaml'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = "config.yaml"; a.click();
+}
+render();
+</script>
+</body>
+</html>
